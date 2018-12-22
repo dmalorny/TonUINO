@@ -78,10 +78,8 @@ static void nextTrack(uint16_t track) {
   if (myCard.mode == 1) {
     uint16_t oldTrack = currentTrack;
     Serial.println(F("Hörspielmodus ist aktiv -> nächster Track"));
-    //playRandomTrackFromFolder(myCard.folder);
-    playNextTrack(false);
-    delay(200);
-    mp3.playAdvertisement(currentTrack);
+    //playRandomTrackFromFolder(myCard.folder);      
+    playNextTrack(false);    
   }
   if (myCard.mode == 2) {
     Serial.println(F("Albummodus ist aktiv -> nächster Track"));
@@ -105,8 +103,6 @@ static void previousTrack() {
   if (myCard.mode == 1) {
     Serial.println(F("Hörspielmodus ist aktiv -> vorheriger Track"));
     playPreviousTrack(false);
-    delay(200);
-    mp3.playAdvertisement(currentTrack);
   }
   if (myCard.mode == 2) {
     Serial.println(F("Albummodus ist aktiv -> vorheriger Track"));
@@ -352,6 +348,14 @@ void playNextTrack(bool saveProgress) {
 
    Serial.print(F("Playing next track: "));
    Serial.println(currentTrack);
+   if (myCard.mode == 1) {
+     // in Hörspielmodus Folgennummer ansagen
+     mp3.playMp3FolderTrack(currentTrack);
+     delay(500);
+     do {
+       delay(10);
+     } while (isPlaying());
+   }
    mp3.playFolderTrack(myCard.folder, currentTrack);
 }
 
@@ -382,6 +386,14 @@ void playPreviousTrack(bool saveProgress) {
 
    Serial.print(F("Playing previous track: "));
    Serial.println(currentTrack);
+   if (myCard.mode == 1) {
+     // in Hörspielmodus Folgennummer ansagen
+     mp3.playMp3FolderTrack(currentTrack);
+     delay(500);
+     do {
+       delay(10);
+     } while (isPlaying());
+   }
    mp3.playFolderTrack(myCard.folder, currentTrack);
 }
 
