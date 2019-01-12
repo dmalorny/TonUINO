@@ -351,7 +351,7 @@ void playNextTrack(bool saveProgress) {
    if (myCard.mode == 1) {
      // in Hörspielmodus Folgennummer ansagen
      mp3.playMp3FolderTrack(currentTrack);
-     delay(500);
+     delay(1000);
      do {
        delay(10);
      } while (isPlaying());
@@ -389,7 +389,7 @@ void playPreviousTrack(bool saveProgress) {
    if (myCard.mode == 1) {
      // in Hörspielmodus Folgennummer ansagen
      mp3.playMp3FolderTrack(currentTrack);
-     delay(500);
+     delay(1000);
      do {
        delay(10);
      } while (isPlaying());
