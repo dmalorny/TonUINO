@@ -5,7 +5,7 @@
 #include <SPI.h>
 #include <SoftwareSerial.h>
 
-#define PROGRAM_MODE 1
+#define PROGRAM_MODE
 
 // DFPlayer Mini
 SoftwareSerial mySoftwareSerial(2, 3); // RX, TX
@@ -216,14 +216,14 @@ void loop() {
       if (isPlaying())
         mp3.playAdvertisement(currentTrack);
       else {
-        if (PROGRAM_MODE == 1) {
+#ifdef PROGRAM_MODE
           knownCard = false;
           mp3.playMp3FolderTrack(800);
           Serial.println(F("Karte resetten..."));
           resetCard();
           mfrc522.PICC_HaltA();
           mfrc522.PCD_StopCrypto1();
-        }
+#endif
       }
       ignorePauseButton = true;
     }
