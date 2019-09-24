@@ -4,8 +4,9 @@
 #include <MFRC522.h>
 #include <SPI.h>
 #include <SoftwareSerial.h>
+#include <Keypad.h>
 
-#define PROGRAM_MODE
+// #define PROGRAM_MODE
 
 // DFPlayer Mini
 SoftwareSerial mySoftwareSerial(2, 3); // RX, TX
@@ -153,6 +154,26 @@ uint8_t numberOfCards = 0;
 
 bool isPlaying() { return !digitalRead(busyPin); }
 
+
+//Hier wird die größe des Keypads definiert
+const byte COLS = 3; //3 Spalten
+const byte ROWS = 4; //4 Zeilen
+//Die Ziffern/Zeichen:
+char hexaKeys[ROWS][COLS]={
+{'#','0','*'},
+{'9','8','7'},
+{'6','5','4'},
+{'3','2','1'}
+};
+  
+byte colPins[COLS] = { A6, A5, A4 }; //Definition der Pins für die 3 Spalten
+byte rowPins[ROWS] = { A3, A2, A1, A0 };//Definition der Pins für die 4 Zeilen
+char Taste; //pressedKey entspricht in Zukunft den gedrückten Tasten
+Keypad Tastenfeld = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS); //Das Keypad kann absofort mit myKeypad angesprochen werden
+uint16_t num = 0;
+bool keyinput=false;
+
+
 void setup() {
 
   Serial.begin(115200); // Es gibt ein paar Debug Ausgaben über die serielle
@@ -198,13 +219,46 @@ void setup() {
 void loop() {
   do {
     mp3.loop();
+    
+    Taste = Tastenfeld.getKey(); //pressedKey entspricht der gedrückten Taste
+    if (Taste) { //Wenn eine Taste gedrückt wurde
+      
+      if (keyinput && Taste != '#' && Taste !='*') {
+        num = num*10 + (int)Taste - 48;
+        Serial.println(num);
+      }
+      if (Taste == '*') {
+        Serial.println("* pressed");
+        //if (isPlaying()) mp3.pause();
+        num = 0;
+        keyinput=true;
+      }
+      if (keyinput && Taste == '#') {
+        Serial.print("# spiele Titel: ");
+        Serial.println(num);
+        
+        playTrack(num,false);
+        
+        num = 0;
+        keyinput=false;
+      }
+    }
+
+    if (keyinput) return;
+
+    
+
+    
     // Buttons werden nun über JS_Button gehandelt, dadurch kann jede Taste
     // doppelt belegt werden
     pauseButton.read();
     upButton.read();
     downButton.read();
 
+    
+
     if (pauseButton.wasReleased()) {
+      Serial.println(F("pause"));
       if (ignorePauseButton == false)
         if (isPlaying())
           mp3.pause();
@@ -328,7 +382,7 @@ void playRandomTrackFromFolder(uint8_t folder) {
 
 /**
  * Plays next track of current folder.
- * If saveProgress is true, the track number is saved to the card.
+ * If saveProgress is true, the track number is saved to the card. TODO: use playTrack
  */
 void playNextTrack(bool saveProgress) {
   uint16_t numTracks = mp3.getFolderTrackCount(myCard.folder);
@@ -365,7 +419,7 @@ void playNextTrack(bool saveProgress) {
 
 /**
  * Plays previous track of current folder.
- * If saveProgress is true, the track number is saved to the card.
+ * If saveProgress is true, the track number is saved to the card. TODO: use playTrack
  */
 void playPreviousTrack(bool saveProgress) {
   uint16_t numTracks = mp3.getFolderTrackCount(myCard.folder);
@@ -401,6 +455,36 @@ void playPreviousTrack(bool saveProgress) {
    mp3.playFolderTrack(myCard.folder, currentTrack);
 }
 
+
+/**
+ * Plays next track of current folder.
+ * If saveProgress is true, the track number is saved to the card.
+ */
+void playTrack(uint8_t nr, bool saveProgress) {
+  uint16_t numTracks = mp3.getFolderTrackCount(myCard.folder);
+  Serial.print(numTracks);
+  Serial.print(F(" Files in folder "));
+  Serial.println(myCard.folder);
+  if (nr>0 && nr<=numTracks) {
+      currentTrack = nr;
+      
+      if (saveProgress) {
+        EEPROM.write(myCard.folder, currentTrack);
+      }
+   }
+
+   Serial.print(F("Playing track: "));
+   Serial.println(currentTrack);
+   if (myCard.mode == 1) {
+     // in Hörspielmodus Folgennummer ansagen
+     mp3.playMp3FolderTrack(currentTrack);
+     delay(1000);
+     do {
+       delay(10);
+     } while (isPlaying());
+   }
+   mp3.playFolderTrack(myCard.folder, currentTrack);
+}
 
 int voiceMenu(int numberOfOptions, int startMessage, int messageOffset,
               bool preview = false, int previewFromFolder = 0) {
