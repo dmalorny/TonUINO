@@ -56,18 +56,17 @@ const byte COLS = 3; //3 Spalten
 const byte ROWS = 4; //4 Zeilen
 //Die Ziffern/Zeichen:
 char hexaKeys[ROWS][COLS] = {
-  {'#', '0', '*'},
-  {'9', '8', '7'},
-  {'6', '5', '4'},
-  {'3', '2', '1'}
+  {'1', '2', '3'},
+  {'7', '8', '9'},
+  {'4', '5', '6'},  
+  {'*', '0', '#'}
 };
 
-byte colPins[COLS] = { A6, A5, A4 }; //Definition der Pins für die 3 Spalten
-byte rowPins[ROWS] = { A3, A2, A1, A0 };//Definition der Pins für die 4 Zeilen
-char Taste; //pressedKey entspricht in Zukunft den gedrückten Tasten
-Keypad Tastenfeld = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS); //Das Keypad kann absofort mit myKeypad angesprochen werden
+byte rowPins[ROWS] = { A0, A1, A2, A3 }; //Definition der Pins für die 4 Zeilen
+byte colPins[COLS] = { A4, A5, A6 };     //Definition der Pins für die 3 Spalten
+Keypad keyPad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
 uint16_t num = 0;
-bool keyinput = false;
+bool keyInput = false;
 
 
 
@@ -228,31 +227,30 @@ void loop() {
   do {
     mp3.loop();
 
-    Taste = Tastenfeld.getKey(); //pressedKey entspricht der gedrückten Taste
-    if (Taste) { //Wenn eine Taste gedrückt wurde
+    char pressedKey = keyPad.getKey(); //pressedKey entspricht der gedrückten Taste
+    if (pressedKey) { //Wenn eine Taste gedrückt wurde
 
-      if (keyinput && Taste != '#' && Taste != '*') {
-        num = num * 10 + (int)Taste - 48;
+      if (keyInput && pressedKey != '#' && pressedKey != '*') {
+        num = num * 10 + (int)pressedKey - 48;
         Serial.println(num);
       }
-      if (Taste == '*') {
+      if (pressedKey == '*') {
         Serial.println("* pressed");
-        //if (isPlaying()) mp3.pause();
         num = 0;
-        keyinput = true;
+        keyInput = true;
       }
-      if (keyinput && Taste == '#') {
+      if (keyInput && pressedKey == '#') {
         Serial.print("# spiele Titel: ");
         Serial.println(num);
 
         playTrack(num, false);
 
         num = 0;
-        keyinput = false;
+        keyInput = false;
       }
     }
 
-    if (keyinput) return;
+    if (keyInput) return;
 
 
 
