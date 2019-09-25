@@ -23,10 +23,58 @@ struct nfcTagObject {
 
 nfcTagObject myCard;
 
+// MFRC522
+#define RST_PIN 9                 // Configurable, see typical pin layout above
+#define SS_PIN 10                 // Configurable, see typical pin layout above
+MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522
+MFRC522::MIFARE_Key key;
+bool successRead;
+byte sector = 1;
+byte blockAddr = 4;
+byte trailerBlock = 7;
+MFRC522::StatusCode status;
+
+#define buttonPause A0
+#define buttonUp A1
+#define buttonDown A2
+#define busyPin 4
+
+#define LONG_PRESS 1000
+
+Button pauseButton(buttonPause);
+Button upButton(buttonUp);
+Button downButton(buttonDown);
+bool ignorePauseButton = false;
+bool ignoreUpButton = false;
+bool ignoreDownButton = false;
+
+uint8_t numberOfCards = 0;
+
+
+//Hier wird die größe des Keypads definiert
+const byte COLS = 3; //3 Spalten
+const byte ROWS = 4; //4 Zeilen
+//Die Ziffern/Zeichen:
+char hexaKeys[ROWS][COLS] = {
+  {'#', '0', '*'},
+  {'9', '8', '7'},
+  {'6', '5', '4'},
+  {'3', '2', '1'}
+};
+
+byte colPins[COLS] = { A6, A5, A4 }; //Definition der Pins für die 3 Spalten
+byte rowPins[ROWS] = { A3, A2, A1, A0 };//Definition der Pins für die 4 Zeilen
+char Taste; //pressedKey entspricht in Zukunft den gedrückten Tasten
+Keypad Tastenfeld = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS); //Das Keypad kann absofort mit myKeypad angesprochen werden
+uint16_t num = 0;
+bool keyinput = false;
+
+
+
 static void nextTrack(uint16_t track);
 
-int voiceMenu(int numberOfOptions, int startMessage, int messageOffset,
-              bool preview = false, int previewFromFolder = 0);
+//int voiceMenu(int numberOfOptions, int startMessage, int messageOffset,
+//              bool preview = false, int previewFromFolder = 0);
 
 bool knownCard = false;
 
@@ -62,6 +110,10 @@ class Mp3Notify {
 };
 
 static DFMiniMp3<SoftwareSerial, Mp3Notify> mp3(mySoftwareSerial);
+
+bool isPlaying() {
+  return !digitalRead(busyPin);
+}
 
 // Leider kann das Modul keine Queue abspielen.
 static uint16_t _lastTrackFinished;
@@ -125,55 +177,9 @@ static void previousTrack() {
   }
 }
 
-// MFRC522
-#define RST_PIN 9                 // Configurable, see typical pin layout above
-#define SS_PIN 10                 // Configurable, see typical pin layout above
-MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522
-MFRC522::MIFARE_Key key;
-bool successRead;
-byte sector = 1;
-byte blockAddr = 4;
-byte trailerBlock = 7;
-MFRC522::StatusCode status;
-
-#define buttonPause A0
-#define buttonUp A1
-#define buttonDown A2
-#define busyPin 4
-
-#define LONG_PRESS 1000
-
-Button pauseButton(buttonPause);
-Button upButton(buttonUp);
-Button downButton(buttonDown);
-bool ignorePauseButton = false;
-bool ignoreUpButton = false;
-bool ignoreDownButton = false;
-
-uint8_t numberOfCards = 0;
-
-bool isPlaying() {
-  return !digitalRead(busyPin);
-}
 
 
-//Hier wird die größe des Keypads definiert
-const byte COLS = 3; //3 Spalten
-const byte ROWS = 4; //4 Zeilen
-//Die Ziffern/Zeichen:
-char hexaKeys[ROWS][COLS] = {
-  {'#', '0', '*'},
-  {'9', '8', '7'},
-  {'6', '5', '4'},
-  {'3', '2', '1'}
-};
 
-byte colPins[COLS] = { A6, A5, A4 }; //Definition der Pins für die 3 Spalten
-byte rowPins[ROWS] = { A3, A2, A1, A0 };//Definition der Pins für die 4 Zeilen
-char Taste; //pressedKey entspricht in Zukunft den gedrückten Tasten
-Keypad Tastenfeld = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS); //Das Keypad kann absofort mit myKeypad angesprochen werden
-uint16_t num = 0;
-bool keyinput = false;
 
 
 void setup() {
