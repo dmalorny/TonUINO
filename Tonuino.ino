@@ -70,7 +70,7 @@ bool keyInput = false;
 
 
 
-static void nextTrack(uint16_t track);
+static void nextTrack();
 
 //int voiceMenu(int numberOfOptions, int startMessage, int messageOffset,
 //              bool preview = false, int previewFromFolder = 0);
@@ -94,7 +94,7 @@ class Mp3Notify {
       delay(100);
       // Nur zum nächsten Track, wenn nicht im Hörspielmodus
       if (myCard.mode != 1) {
-        nextTrack(track);
+        nextTrack();
       }
     }
     static void OnCardOnline(uint16_t code) {
@@ -116,13 +116,9 @@ bool isPlaying() {
 
 // Leider kann das Modul keine Queue abspielen.
 static uint16_t _lastTrackFinished;
-static void nextTrack(uint16_t track) {
-  if (track == _lastTrackFinished) {
-    return;
-  }
-  _lastTrackFinished = track;
 
-  if (knownCard == false)
+static void nextTrack() {
+   if (knownCard == false)
     // Wenn eine neue Karte angelernt wird soll das Ende eines Tracks nicht
     // verarbeitet werden
     return;
@@ -200,7 +196,7 @@ void setup() {
 
   // DFPlayer Mini initialisieren
   mp3.begin();
-  mp3.setVolume(15);
+  mp3.setVolume(5);
 
   // NFC Leser initialisieren
   SPI.begin();        // Init SPI bus
@@ -263,10 +259,13 @@ void loop() {
 
     if (pauseButton.wasReleased()) {
       if (ignorePauseButton == false)
-        if (isPlaying())
+        if (isPlaying()) {
+          Serial.println(F("Pause"));
           mp3.pause();
-        else
+        } else {
+          Serial.println(F("Start"));
           mp3.start();
+        }
       ignorePauseButton = false;
     } else if (pauseButton.pressedFor(LONG_PRESS) &&
                ignorePauseButton == false) {
@@ -292,7 +291,12 @@ void loop() {
       ignoreUpButton = true;
     } else if (upButton.wasReleased()) {
       if (!ignoreUpButton)
-        nextTrack(random(65536));
+        if (isPlaying()) {
+          Serial.println(F("Volume Up"));
+          mp3.increaseVolume();
+        } else {
+          nextTrack();
+        }
       else
         ignoreUpButton = false;
     }
@@ -304,7 +308,12 @@ void loop() {
       ignoreDownButton = true;
     } else if (downButton.wasReleased()) {
       if (!ignoreDownButton)
-        previousTrack();
+        if (isPlaying()) {
+          Serial.println(F("Volume Down"));
+          mp3.decreaseVolume();
+        } else {
+          previousTrack();
+        }
       else
         ignoreDownButton = false;
     }
