@@ -123,7 +123,7 @@ static void nextTrack() {
     // verarbeitet werden
     return;
 
-  uint16_t numTracksInFolder = mp3.getFolderTrackCount(myCard.folder);
+  //uint16_t numTracksInFolder = mp3.getFolderTrackCount(myCard.folder);
 
   if (myCard.mode == 1) {
     uint16_t oldTrack = currentTrack;
