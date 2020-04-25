@@ -58,7 +58,7 @@ const byte ROWS = 4; //4 Zeilen
 char hexaKeys[ROWS][COLS] = {
   {'1', '2', '3'},
   {'7', '8', '9'},
-  {'4', '5', '6'},  
+  {'4', '5', '6'},
   {'*', '0', '#'}
 };
 
@@ -118,7 +118,7 @@ bool isPlaying() {
 static uint16_t _lastTrackFinished;
 
 static void nextTrack() {
-   if (knownCard == false)
+  if (knownCard == false)
     // Wenn eine neue Karte angelernt wird soll das Ende eines Tracks nicht
     // verarbeitet werden
     return;
@@ -285,15 +285,13 @@ void loop() {
     }
 
     if (upButton.pressedFor(LONG_PRESS)) {
-      Serial.println(F("Volume Up"));
-      mp3.increaseVolume();
+      volumeUp();
       delay(200);
       ignoreUpButton = true;
     } else if (upButton.wasReleased()) {
       if (!ignoreUpButton)
         if (isPlaying()) {
-          Serial.println(F("Volume Up"));
-          mp3.increaseVolume();
+          volumeUp();
         } else {
           nextTrack();
         }
@@ -302,15 +300,13 @@ void loop() {
     }
 
     if (downButton.pressedFor(LONG_PRESS)) {
-      Serial.println(F("Volume Down"));
-      mp3.decreaseVolume();
+      volumeDown();
       delay(200);
       ignoreDownButton = true;
     } else if (downButton.wasReleased()) {
       if (!ignoreDownButton)
         if (isPlaying()) {
-          Serial.println(F("Volume Down"));
-          mp3.decreaseVolume();
+          volumeDown();
         } else {
           previousTrack();
         }
@@ -370,6 +366,19 @@ void loop() {
   }
   mfrc522.PICC_HaltA();
   mfrc522.PCD_StopCrypto1();
+}
+
+void volumeUp() {
+  mp3.increaseVolume();
+  Serial.print(F("Volume "));
+  Serial.println(mp3.getVolume());
+
+}
+
+void volumeDown() {
+  mp3.decreaseVolume();
+  Serial.print(F("Volume "));
+  Serial.println(mp3.getVolume());
 }
 
 /**
