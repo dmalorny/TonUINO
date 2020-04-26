@@ -1,4 +1,4 @@
-#include <DFMiniMp3.h>
+#include <DFMiniMp3.h> // version 1.0.2
 #include <EEPROM.h>
 #include <JC_Button.h>
 #include <MFRC522.h>
@@ -7,6 +7,9 @@
 #include <Keypad.h>
 
 #define PROGRAM_MODE
+
+#define LONG_PRESS 1000
+#define START_VOLUME 5
 
 // DFPlayer Mini
 SoftwareSerial mySoftwareSerial(2, 3); // RX, TX
@@ -22,6 +25,8 @@ struct nfcTagObject {
 };
 
 nfcTagObject myCard;
+uint8_t numberOfCards = 0;
+bool knownCard = false;
 
 // MFRC522
 #define RST_PIN 9                 // Configurable, see typical pin layout above
@@ -39,7 +44,7 @@ MFRC522::StatusCode status;
 #define buttonDown A2
 #define busyPin 4
 
-#define LONG_PRESS 1000
+
 
 Button pauseButton(buttonPause);
 Button upButton(buttonUp);
@@ -48,7 +53,7 @@ bool ignorePauseButton = false;
 bool ignoreUpButton = false;
 bool ignoreDownButton = false;
 
-uint8_t numberOfCards = 0;
+
 
 
 //Hier wird die größe des Keypads definiert
@@ -69,13 +74,7 @@ uint16_t num = 0;
 bool keyInput = false;
 
 
-
 static void nextTrack();
-
-//int voiceMenu(int numberOfOptions, int startMessage, int messageOffset,
-//              bool preview = false, int previewFromFolder = 0);
-
-bool knownCard = false;
 
 // implement a notification class,
 // its member methods will get called
@@ -89,8 +88,8 @@ class Mp3Notify {
       Serial.println(errorCode);
     }
     static void OnPlayFinished(uint16_t track) {
-      //Serial.print("Track beendet ");
-      //Serial.println(track);
+      Serial.print("Track beendet ");
+      Serial.println(track);
       delay(100);
       // Nur zum nächsten Track, wenn nicht im Hörspielmodus
       if (myCard.mode != 1) {
@@ -174,9 +173,6 @@ static void previousTrack() {
 
 
 
-
-
-
 void setup() {
 
   Serial.begin(115200); // Es gibt ein paar Debug Ausgaben über die serielle
@@ -184,7 +180,7 @@ void setup() {
   randomSeed(analogRead(A0)); // Zufallsgenerator initialisieren
 
   Serial.println(F("TonUINO Version 2.0"));
-  Serial.println(F("(c) Thorsten Voß"));
+  Serial.println(F("(c) Thorsten Voß, Dirk Malorny"));
 
   // Knöpfe mit PullUp
   pinMode(buttonPause, INPUT_PULLUP);
@@ -196,7 +192,7 @@ void setup() {
 
   // DFPlayer Mini initialisieren
   mp3.begin();
-  mp3.setVolume(5);
+  mp3.setVolume(START_VOLUME);
 
   // NFC Leser initialisieren
   SPI.begin();        // Init SPI bus
@@ -207,6 +203,7 @@ void setup() {
     key.keyByte[i] = 0xFF;
   }
 
+#ifdef PROGRAM_MODE
   // RESET --- ALLE DREI KNÖPFE BEIM STARTEN GEDRÜCKT HALTEN -> alle bekannten
   // Karten werden gelöscht
   if (digitalRead(buttonPause) == LOW && digitalRead(buttonUp) == LOW &&
@@ -216,13 +213,71 @@ void setup() {
       EEPROM.write(i, 0);
     }
   }
+#endif
 
 }
 
 void loop() {
   do {
     mp3.loop();
+    keyHandler();
+  } while (!mfrc522.PICC_IsNewCardPresent());
 
+  // RFID Karte wurde aufgelegt
+  if (!mfrc522.PICC_ReadCardSerial())
+    return;
+
+  if (readCard(&myCard) == true) {
+    cardHandler();
+  }
+  mfrc522.PICC_HaltA();
+  mfrc522.PCD_StopCrypto1();
+}
+
+void cardHandler() {
+    if (myCard.cookie == 322417479 && myCard.folder != 0 && myCard.mode != 0) {
+
+      knownCard = true;
+      _lastTrackFinished = 0;
+
+      // Hörspielmodus: eine zufällige Datei aus dem Ordner
+      if (myCard.mode == 1) {
+        Serial.println(F("Hörspielmodus -> zufälligen Track wiedergeben"));
+        playRandomTrackFromFolder(myCard.folder);
+      }
+      // Album Modus: kompletten Ordner spielen
+      if (myCard.mode == 2) {
+        Serial.println(F("Album Modus -> kompletten Ordner wiedergeben"));
+        currentTrack = 1;
+        mp3.playFolderTrack(myCard.folder, currentTrack);
+      }
+      // Party Modus: Ordner in zufälliger Reihenfolge
+      if (myCard.mode == 3) {
+        Serial.println(F("Party Modus -> Ordner in zufälliger Reihenfolge wiedergeben"));
+        playRandomTrackFromFolder(myCard.folder);
+      }
+      // Einzel Modus: eine Datei aus dem Ordner abspielen
+      if (myCard.mode == 4) {
+        Serial.println(F("Einzel Modus -> eine Datei aus dem Odrdner abspielen"));
+        currentTrack = myCard.special;
+        mp3.playFolderTrack(myCard.folder, currentTrack);
+      }
+      // Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken
+      if (myCard.mode == 5) {
+        Serial.println(F("Hörbuch Modus -> kompletten Ordner spielen und Fortschritt merken"));
+        currentTrack = EEPROM.read(myCard.folder);
+        mp3.playFolderTrack(myCard.folder, currentTrack);
+      }
+    }
+
+    // Neue Karte konfigurieren
+    else {
+      knownCard = false;
+      setupCard();
+    }
+}
+
+void keyHandler() {
     char pressedKey = keyPad.getKey(); //pressedKey entspricht der gedrückten Taste
     if (pressedKey) { //Wenn eine Taste gedrückt wurde
 
@@ -286,7 +341,7 @@ void loop() {
 
     if (upButton.pressedFor(LONG_PRESS)) {
       volumeUp();
-      delay(200);
+      delay(100);
       ignoreUpButton = true;
     } else if (upButton.wasReleased()) {
       if (!ignoreUpButton)
@@ -301,7 +356,7 @@ void loop() {
 
     if (downButton.pressedFor(LONG_PRESS)) {
       volumeDown();
-      delay(200);
+      delay(100);
       ignoreDownButton = true;
     } else if (downButton.wasReleased()) {
       if (!ignoreDownButton)
@@ -314,58 +369,6 @@ void loop() {
         ignoreDownButton = false;
     }
     // Ende der Buttons
-  } while (!mfrc522.PICC_IsNewCardPresent());
-
-  // RFID Karte wurde aufgelegt
-
-  if (!mfrc522.PICC_ReadCardSerial())
-    return;
-
-  if (readCard(&myCard) == true) {
-    if (myCard.cookie == 322417479 && myCard.folder != 0 && myCard.mode != 0) {
-
-      knownCard = true;
-      _lastTrackFinished = 0;
-
-
-      // Hörspielmodus: eine zufällige Datei aus dem Ordner
-      if (myCard.mode == 1) {
-        Serial.println(F("Hörspielmodus -> zufälligen Track wiedergeben"));
-        playRandomTrackFromFolder(myCard.folder);
-      }
-      // Album Modus: kompletten Ordner spielen
-      if (myCard.mode == 2) {
-        Serial.println(F("Album Modus -> kompletten Ordner wiedergeben"));
-        currentTrack = 1;
-        mp3.playFolderTrack(myCard.folder, currentTrack);
-      }
-      // Party Modus: Ordner in zufälliger Reihenfolge
-      if (myCard.mode == 3) {
-        Serial.println(F("Party Modus -> Ordner in zufälliger Reihenfolge wiedergeben"));
-        playRandomTrackFromFolder(myCard.folder);
-      }
-      // Einzel Modus: eine Datei aus dem Ordner abspielen
-      if (myCard.mode == 4) {
-        Serial.println(F("Einzel Modus -> eine Datei aus dem Odrdner abspielen"));
-        currentTrack = myCard.special;
-        mp3.playFolderTrack(myCard.folder, currentTrack);
-      }
-      // Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken
-      if (myCard.mode == 5) {
-        Serial.println(F("Hörbuch Modus -> kompletten Ordner spielen und Fortschritt merken"));
-        currentTrack = EEPROM.read(myCard.folder);
-        mp3.playFolderTrack(myCard.folder, currentTrack);
-      }
-    }
-
-    // Neue Karte konfigurieren
-    else {
-      knownCard = false;
-      setupCard();
-    }
-  }
-  mfrc522.PICC_HaltA();
-  mfrc522.PCD_StopCrypto1();
 }
 
 void volumeUp() {
@@ -545,6 +548,9 @@ int voiceMenu(int numberOfOptions, int startMessage, int messageOffset,
     }
   } while (true);
 }
+
+
+
 
 void resetCard() {
   do {
